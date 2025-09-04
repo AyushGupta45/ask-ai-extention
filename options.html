@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>AI Helper Settings</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #007bff;
+            padding-bottom: 10px;
+        }
+        
+        .section {
+            margin: 30px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+        }
+        
+        .section h2 {
+            margin-top: 0;
+            color: #495057;
+        }
+        
+        .form-group {
+            margin: 15px 0;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #dee2e6;
+            border-radius: 6px;
+            font-size: 14px;
+            box-sizing: border-box;
+            transition: border-color 0.3s;
+        }
+        
+        input[type="text"]:focus, input[type="password"]:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+        
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 10px 10px 10px 0;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+        
+        button.secondary {
+            background: #6c757d;
+        }
+        
+        button.secondary:hover {
+            background: #545b62;
+        }
+        
+        .status {
+            padding: 10px;
+            border-radius: 6px;
+            margin: 15px 0;
+            font-weight: 500;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .instructions {
+            background: #e3f2fd;
+            border: 1px solid #bbdefb;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        
+        .instructions h3 {
+            margin-top: 0;
+            color: #1976d2;
+        }
+        
+        .step {
+            margin: 15px 0;
+            padding: 15px;
+            background: white;
+            border-radius: 6px;
+            border-left: 3px solid #2196f3;
+        }
+        
+        .step-number {
+            display: inline-block;
+            background: #2196f3;
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 24px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        
+        .code {
+            background: #f8f9fa;
+            padding: 3px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+            border: 1px solid #dee2e6;
+        }
+        
+        .link {
+            color: #007bff;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .link:hover {
+            text-decoration: underline;
+        }
+        
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+        }
+        
+        .model-select {
+            margin: 15px 0;
+        }
+        
+        select {
+            padding: 10px;
+            border: 2px solid #dee2e6;
+            border-radius: 6px;
+            font-size: 14px;
+            background: white;
+            width: 100%;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 AI Helper Settings</h1>
+        
+        <div class="section">
+            <h2>API Configuration</h2>
+            
+            <div class="form-group">
+                <label for="apiKey">Groq API Key:</label>
+                <input type="password" id="apiKey" placeholder="Enter your Groq API key (gsk_...)">
+            </div>
+            
+            <div class="form-group model-select">
+                <label for="model">AI Model:</label>
+                <select id="model">
+                    <option value="llama-3.1-8b-instant">Llama 3.1 8B (Fast)</option>
+                    <option value="llama-3.1-70b-versatile">Llama 3.1 70B (Smart)</option>
+                    <option value="mixtral-8x7b-32768">Mixtral 8x7B</option>
+                    <option value="gemma-7b-it">Gemma 7B</option>
+                </select>
+            </div>
+            
+            <button id="saveBtn">Save Settings</button>
+            <button id="testBtn" class="secondary">Test Connection</button>
+            
+            <div id="status"></div>
+        </div>
+        
+        <div class="instructions">
+            <h3>📝 How to Get Your Free Groq API Key</h3>
+            
+            <div class="step">
+                <span class="step-number">1</span>
+                <strong>Visit Groq Console:</strong> Go to <a href="https://console.groq.com" target="_blank" class="link">console.groq.com</a>
+            </div>
+            
+            <div class="step">
+                <span class="step-number">2</span>
+                <strong>Sign Up/Login:</strong> Create a free account or login with Google/GitHub
+            </div>
+            
+            <div class="step">
+                <span class="step-number">3</span>
+                <strong>Navigate to API Keys:</strong> Click on <span class="code">API Keys</span> in the left sidebar
+            </div>
+            
+            <div class="step">
+                <span class="step-number">4</span>
+                <strong>Create New Key:</strong> Click <span class="code">Create API Key</span> button
+            </div>
+            
+            <div class="step">
+                <span class="step-number">5</span>
+                <strong>Name Your Key:</strong> Give it a name like "AI Helper Extension"
+            </div>
+            
+            <div class="step">
+                <span class="step-number">6</span>
+                <strong>Copy the Key:</strong> Copy the generated key (starts with <span class="code">gsk_</span>)
+            </div>
+            
+            <div class="step">
+                <span class="step-number">7</span>
+                <strong>Paste Here:</strong> Paste the key in the field above and click "Save Settings"
+            </div>
+            
+            <div class="warning">
+                <strong>⚠️ Important:</strong> Keep your API key secure! Don't share it publicly. Groq offers generous free tier limits for personal use.
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>🎯 Extension Features</h2>
+            <ul>
+                <li><strong>Right-click AI:</strong> Select text and right-click → "Ask AI"</li>
+                <li><strong>Chat Interface:</strong> Press <span class="code">Alt+X</span> to toggle chat</li>
+                <li><strong>Hide Responses:</strong> Press <span class="code">Alt+C</span> to hide/show AI responses</li>
+                <li><strong>Text Selection:</strong> Automatically enables text selection on restricted sites</li>
+                <li><strong>Copy/Paste:</strong> Enables copy/paste on blocked websites</li>
+            </ul>
+        </div>
+        
+        <div class="section">
+            <h2>🔧 Troubleshooting</h2>
+            <ul>
+                <li><strong>API Key Invalid:</strong> Make sure the key starts with <span class="code">gsk_</span></li>
+                <li><strong>No Response:</strong> Check your internet connection and API key</li>
+                <li><strong>Rate Limited:</strong> Wait a moment and try again (free tier has limits)</li>
+                <li><strong>Extension Not Working:</strong> Refresh the page and try again</li>
+            </ul>
+        </div>
+    </div>
+    
+    <script src="options.js"></script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "AI Helper",
+  "version": "1.0",
+  "description": "Right-click selected text to get AI-generated response",
+  "permissions": ["contextMenus", "scripting", "activeTab", "storage"],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  },
+  "background": { "service_worker": "background.js" },
+  "action": { "default_popup": "popup.html" },
+  "options_page": "options.html",
+  "icons": { "128": "icon.png" },
+  "commands": {
+    "toggle-chat": {
+      "suggested_key": {
+        "default": "Alt+X"
+      },
+      "description": "Toggle AI Chat visibility"
+    }
+  }
+}
