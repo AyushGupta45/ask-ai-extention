@@ -9,7 +9,6 @@
   },
   "background": { "service_worker": "background.js" },
   "action": { "default_popup": "popup.html" },
-  "options_page": "options.html",
   "icons": { "128": "icon.png" },
   "commands": {
     "toggle-chat": {

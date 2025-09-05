@@ -164,10 +164,16 @@
   const model = "llama-3.1-8b-instant";
 
   const DEFAULT_INSTRUCTION = `
-You are an expert in aptitude, coding, and technical Q&A. For any question I provide, first identify the category (aptitude, coding, or technical). Do not mention the category. No preamble. Then answer it accurately and clearly, providing:
-For aptitude: Firstly write the correct option number and its correct answer, then a step-by-step solution with the final answer.
-For coding: a commentless Python solution with explanation and sample input/output.
-For technical Q&A: a concise, short correct answer in very simple human language. Do not use punctuation marks unnecessarily, answer as if speaking and use very simple English.
+You are an intelligent assistant. The user will give you a piece of text selected from a webpage, without extra instructions. Your job:
+1. Understand what the text likely represents (e.g., a question, an article snippet, a code block, a definition, or a statement).
+2. Provide the most helpful and relevant response in a natural, clear way. Examples:
+   - If it's a question, answer it accurately and concisely.
+   - If it's a paragraph or article, provide a short summary or explanation.
+   - If it's code, explain what it does and/or improve it if needed.
+   - If it's a problem to solve (like math or logic), give the correct solution with clear steps.
+   - If it's unclear, give a helpful interpretation or context.
+3. Keep the tone helpful and natural. Do not include unnecessary words or preambles.
+4. If needed, provide short step-by-step reasoning or examples, but stay concise.
 `;
 
   // Track conversation context
@@ -277,8 +283,6 @@ For technical Q&A: a concise, short correct answer in very simple human language
       lastInjectedDiv.remove();
     }
 
-    const prompt = DEFAULT_INSTRUCTION + "\n\nUser input:\n" + userText;
-
     // Add first user message to conversation history
     conversationHistory = [{ role: "user", content: userText }];
 
@@ -314,7 +318,7 @@ For technical Q&A: a concise, short correct answer in very simple human language
         const container = document.createElement("div");
         container.style.cssText = `
         display: flex;
-        min-width: 500px;
+        width: 100%;
         max-height: 400px;
         flex-direction: column;
         background: #ffffff;
@@ -368,10 +372,17 @@ For technical Q&A: a concise, short correct answer in very simple human language
         `;
         });
 
+        const buttonContainer = document.createElement("div");
+        buttonContainer.style.cssText = `
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 12px;
+      `;
+
         const copyButton = document.createElement("button");
         copyButton.textContent = "Copy Response";
         copyButton.style.cssText = `
-        margin-top: 12px;
         padding: 6px 12px;
         background: #f0f0f0;
         border: 1px solid #ddd;
@@ -385,10 +396,86 @@ For technical Q&A: a concise, short correct answer in very simple human language
           setTimeout(() => (copyButton.textContent = "Copy Response"), 2000);
         });
 
+        const regenerateButton = document.createElement("button");
+        regenerateButton.textContent = "Regenerate";
+        regenerateButton.style.cssText = `
+        padding: 6px 12px;
+        background: #ffc107;
+        color: #000;
+        border: 1px solid #ffb300;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+      `;
+        regenerateButton.addEventListener("click", async () => {
+          regenerateButton.textContent = "Regenerating...";
+          regenerateButton.disabled = true;
+
+          try {
+            const regeneratePrompt =
+              DEFAULT_INSTRUCTION +
+              "\n\nUser input:\n" +
+              userText +
+              "\n\nPlease provide a different response from your previous answer.";
+
+            const res = await fetch(
+              "https://api.groq.com/openai/v1/chat/completions",
+              {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${api_key}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  model: model,
+                  messages: [
+                    { role: "system", content: DEFAULT_INSTRUCTION },
+                    {
+                      role: "user",
+                      content:
+                        userText +
+                        "\n\nPlease provide a different response from your previous answer.",
+                    },
+                  ],
+                }),
+              }
+            );
+
+            const result = await res.json();
+            const newAnswer =
+              result.choices?.[0]?.message?.content || "⚠️ No response";
+
+            // Update the response div with new content
+            responseDiv.innerHTML = convertMarkdown(newAnswer);
+
+            // Update conversation history with new response
+            conversationHistory[conversationHistory.length - 1] = {
+              role: "assistant",
+              content: newAnswer,
+            };
+
+            // Update copy button to copy new response
+            copyButton.onclick = () => {
+              navigator.clipboard.writeText(newAnswer);
+              copyButton.textContent = "Copied!";
+              setTimeout(
+                () => (copyButton.textContent = "Copy Response"),
+                2000
+              );
+            };
+          } catch (error) {
+            console.error("Error regenerating response:", error);
+            responseDiv.innerHTML =
+              "<p style='color: red;'>⚠️ Error regenerating response. Please try again.</p>";
+          } finally {
+            regenerateButton.textContent = "Regenerate";
+            regenerateButton.disabled = false;
+          }
+        });
+
         const continueButton = document.createElement("button");
         continueButton.textContent = "Continue to Chat";
         continueButton.style.cssText = `
-        margin-top: 8px;
         padding: 6px 12px;
         background: #007bff;
         color: white;
@@ -399,10 +486,13 @@ For technical Q&A: a concise, short correct answer in very simple human language
       `;
         continueButton.addEventListener("click", openChatInterface);
 
+        buttonContainer.appendChild(copyButton);
+        buttonContainer.appendChild(regenerateButton);
+        buttonContainer.appendChild(continueButton);
+
         container.appendChild(closeButton);
         container.appendChild(responseDiv);
-        container.appendChild(copyButton);
-        container.appendChild(continueButton);
+        container.appendChild(buttonContainer);
 
         wrapper.appendChild(container);
         range.insertNode(wrapper);
@@ -515,6 +605,61 @@ For technical Q&A: a concise, short correct answer in very simple human language
     align-items: center;
   `;
 
+    const headerTitle = document.createElement("span");
+    headerTitle.textContent = "AI Chat";
+    headerTitle.style.cssText = `
+    font-size: 14px;
+    color: #333;
+  `;
+
+    const headerButtons = document.createElement("div");
+    headerButtons.style.cssText = `
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  `;
+
+    const newChatButton = document.createElement("button");
+    newChatButton.textContent = "New Chat";
+    newChatButton.style.cssText = `
+    padding: 4px 8px;
+    background: #28a745;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 11px;
+  `;
+    newChatButton.addEventListener("click", () => {
+      // Clear conversation history
+      conversationHistory = [];
+
+      // Clear chat messages
+      chatMessages.innerHTML = "";
+
+      // Show confirmation
+      const confirmMsg = document.createElement("div");
+      confirmMsg.textContent =
+        "New chat started! Previous conversation cleared.";
+      confirmMsg.style.cssText = `
+        background: #d4edda;
+        color: #155724;
+        padding: 8px 12px;
+        border-radius: 4px;
+        text-align: center;
+        font-size: 12px;
+        margin: 10px 0;
+      `;
+      chatMessages.appendChild(confirmMsg);
+
+      // Remove confirmation message after 3 seconds
+      setTimeout(() => {
+        if (chatMessages.contains(confirmMsg)) {
+          chatMessages.removeChild(confirmMsg);
+        }
+      }, 3000);
+    });
+
     const closeChatButton = document.createElement("button");
     closeChatButton.textContent = "×";
     closeChatButton.style.cssText = `
@@ -527,7 +672,11 @@ For technical Q&A: a concise, short correct answer in very simple human language
     closeChatButton.addEventListener("click", () => {
       chatContainer.style.display = "none"; // Hide instead of removing
     });
-    chatHeader.appendChild(closeChatButton);
+
+    headerButtons.appendChild(newChatButton);
+    headerButtons.appendChild(closeChatButton);
+    chatHeader.appendChild(headerTitle);
+    chatHeader.appendChild(headerButtons);
     makeDraggable(chatContainer, chatHeader);
 
     const chatMessages = document.createElement("div");
@@ -540,7 +689,15 @@ For technical Q&A: a concise, short correct answer in very simple human language
     gap: 10px;
   `;
 
-    conversationHistory.forEach((msg) => {
+    conversationHistory.forEach((msg, index) => {
+      const msgWrapper = document.createElement("div");
+      msgWrapper.style.cssText = `
+        display: flex;
+        flex-direction: column;
+        align-items: ${msg.role === "user" ? "flex-end" : "flex-start"};
+        margin: 8px 0;
+      `;
+
       const msgDiv = document.createElement("div");
       msgDiv.style.padding = "8px 12px";
       msgDiv.style.borderRadius = "8px";
@@ -550,14 +707,95 @@ For technical Q&A: a concise, short correct answer in very simple human language
 
       if (msg.role === "user") {
         msgDiv.style.background = "#e3f2fd";
-        msgDiv.style.alignSelf = "flex-end";
         msgDiv.textContent = msg.content;
+        msgWrapper.appendChild(msgDiv);
       } else {
         msgDiv.style.background = "#f1f1f1";
-        msgDiv.style.alignSelf = "flex-start";
         msgDiv.innerHTML = convertMarkdown(msg.content);
+
+        // Add regenerate button for AI responses
+        const regenerateBtnDiv = document.createElement("div");
+        regenerateBtnDiv.style.cssText = `
+          margin-top: 4px;
+          text-align: left;
+        `;
+
+        const regenerateBtn = document.createElement("button");
+        regenerateBtn.textContent = "↻ Regenerate";
+        regenerateBtn.style.cssText = `
+          padding: 2px 6px;
+          background: #ffc107;
+          color: #000;
+          border: 1px solid #ffb300;
+          border-radius: 3px;
+          cursor: pointer;
+          font-size: 10px;
+        `;
+
+        regenerateBtn.addEventListener("click", async () => {
+          regenerateBtn.textContent = "Generating...";
+          regenerateBtn.disabled = true;
+
+          try {
+            // Find the corresponding user message
+            const userMsg = conversationHistory[index - 1];
+            if (userMsg && userMsg.role === "user") {
+              const res = await fetch(
+                "https://api.groq.com/openai/v1/chat/completions",
+                {
+                  method: "POST",
+                  headers: {
+                    Authorization: `Bearer ${api_key}`,
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    model: model,
+                    messages: [
+                      {
+                        role: "system",
+                        content:
+                          "You are an expert assistant. Help the user naturally. Provide a different response from your previous answer.",
+                      },
+                      {
+                        role: "user",
+                        content:
+                          userMsg.content +
+                          "\n\nPlease provide a different response.",
+                      },
+                    ],
+                  }),
+                }
+              );
+
+              const data = await res.json();
+              const newResponse =
+                data.choices?.[0]?.message?.content || "⚠️ No response";
+
+              // Update the message content
+              msgDiv.innerHTML = convertMarkdown(newResponse);
+
+              // Update conversation history
+              conversationHistory[index] = {
+                role: "assistant",
+                content: newResponse,
+              };
+            }
+          } catch (error) {
+            console.error("Error regenerating message:", error);
+            msgDiv.innerHTML =
+              "<p style='color: red;'>⚠️ Error regenerating. Please try again.</p>";
+          } finally {
+            regenerateBtn.textContent = "↻ Regenerate";
+            regenerateBtn.disabled = false;
+          }
+        });
+
+        regenerateBtnDiv.appendChild(regenerateBtn);
+        msgWrapper.appendChild(msgDiv);
+        msgWrapper.appendChild(regenerateBtnDiv);
       }
-      chatMessages.appendChild(msgDiv);
+
+      chatMessages.appendChild(msgWrapper);
     });
 
     const chatInputWrapper = document.createElement("div");
@@ -584,18 +822,26 @@ For technical Q&A: a concise, short correct answer in very simple human language
 
       conversationHistory.push({ role: "user", content: userMsg });
 
+      const userWrapper = document.createElement("div");
+      userWrapper.style.cssText = `
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        margin: 8px 0;
+      `;
+
       const userDiv = document.createElement("div");
       userDiv.textContent = userMsg;
       userDiv.style.cssText = `
       background: #e3f2fd;
-      align-self: flex-end;
       padding: 8px 12px;
       border-radius: 8px;
       max-width: 80%;
       word-wrap: break-word;
       user-select: text;
     `;
-      chatMessages.appendChild(userDiv);
+      userWrapper.appendChild(userDiv);
+      chatMessages.appendChild(userWrapper);
       chatInput.value = "";
       chatMessages.scrollTop = chatMessages.scrollHeight;
 
@@ -612,8 +858,7 @@ For technical Q&A: a concise, short correct answer in very simple human language
             messages: [
               {
                 role: "system",
-                content:
-                  "You are an expert assistant. Help the user naturally.",
+                content: DEFAULT_INSTRUCTION,
               },
               ...conversationHistory,
             ],
@@ -627,18 +872,100 @@ For technical Q&A: a concise, short correct answer in very simple human language
 
       conversationHistory.push({ role: "assistant", content: aiResponse });
 
+      const aiWrapper = document.createElement("div");
+      aiWrapper.style.cssText = `
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        margin: 8px 0;
+      `;
+
       const aiDiv = document.createElement("div");
       aiDiv.innerHTML = convertMarkdown(aiResponse);
       aiDiv.style.cssText = `
       background: #f1f1f1;
-      align-self: flex-start;
       padding: 8px 12px;
       border-radius: 8px;
       max-width: 80%;
       word-wrap: break-word;
       user-select: text;
     `;
-      chatMessages.appendChild(aiDiv);
+
+      const regenerateBtnDiv = document.createElement("div");
+      regenerateBtnDiv.style.cssText = `
+        margin-top: 4px;
+        text-align: left;
+      `;
+
+      const regenerateBtn = document.createElement("button");
+      regenerateBtn.textContent = "↻ Regenerate";
+      regenerateBtn.style.cssText = `
+        padding: 2px 6px;
+        background: #ffc107;
+        color: #000;
+        border: 1px solid #ffb300;
+        border-radius: 3px;
+        cursor: pointer;
+        font-size: 10px;
+      `;
+
+      regenerateBtn.addEventListener("click", async () => {
+        regenerateBtn.textContent = "Generating...";
+        regenerateBtn.disabled = true;
+
+        try {
+          const res = await fetch(
+            "https://api.groq.com/openai/v1/chat/completions",
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${api_key}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model: model,
+                messages: [
+                  {
+                    role: "system",
+                    content:
+                      "You are an expert assistant. Help the user naturally. Provide a different response from your previous answer.",
+                  },
+                  {
+                    role: "user",
+                    content:
+                      userMsg + "\n\nPlease provide a different response.",
+                  },
+                ],
+              }),
+            }
+          );
+
+          const newData = await res.json();
+          const newAiResponse =
+            newData.choices?.[0]?.message?.content || "⚠️ No response";
+
+          // Update the message content
+          aiDiv.innerHTML = convertMarkdown(newAiResponse);
+
+          // Update conversation history
+          conversationHistory[conversationHistory.length - 1] = {
+            role: "assistant",
+            content: newAiResponse,
+          };
+        } catch (error) {
+          console.error("Error regenerating message:", error);
+          aiDiv.innerHTML =
+            "<p style='color: red;'>⚠️ Error regenerating. Please try again.</p>";
+        } finally {
+          regenerateBtn.textContent = "↻ Regenerate";
+          regenerateBtn.disabled = false;
+        }
+      });
+
+      regenerateBtnDiv.appendChild(regenerateBtn);
+      aiWrapper.appendChild(aiDiv);
+      aiWrapper.appendChild(regenerateBtnDiv);
+      chatMessages.appendChild(aiWrapper);
       chatMessages.scrollTop = chatMessages.scrollHeight;
     }
 
