@@ -254,11 +254,20 @@ You are an intelligent assistant. The user will give you a piece of text selecte
     }
   }
 
-  // Keyboard shortcut listener for Alt+H
+  // Keyboard shortcut listener for Alt+C and Alt+G
   document.addEventListener("keydown", (e) => {
     if (e.altKey && e.key.toLowerCase() === "c") {
       e.preventDefault();
       toggleAIResponse();
+    }
+
+    if (e.altKey && e.key.toLowerCase() === "g") {
+      e.preventDefault();
+      // Generate AI response for selected text
+      const selectedText = window.getSelection().toString().trim();
+      if (selectedText) {
+        processSelectedText(selectedText);
+      }
     }
   });
 
@@ -274,10 +283,28 @@ You are an intelligent assistant. The user will give you a piece of text selecte
       return;
     }
 
+    if (msg.generateResponse) {
+      // Handle keyboard shortcut for generating response on selected text
+      const selectedText = window.getSelection().toString().trim();
+      if (selectedText) {
+        // Trigger the AI response for selected text
+        chrome.runtime.sendMessage({}, async (response) => {
+          await processSelectedText(selectedText);
+        });
+      }
+      return;
+    }
+
     if (!msg.text || isProcessing) return;
 
+    await processSelectedText(msg.text);
+  });
+
+  // Function to process selected text and generate AI response
+  async function processSelectedText(userText) {
+    if (isProcessing) return;
+
     isProcessing = true;
-    const userText = msg.text;
 
     if (lastInjectedDiv) {
       lastInjectedDiv.remove();
@@ -510,7 +537,7 @@ You are an intelligent assistant. The user will give you a piece of text selecte
     } finally {
       isProcessing = false;
     }
-  });
+  }
 
   function makeDraggable(element, handle) {
     let offsetX = 0,

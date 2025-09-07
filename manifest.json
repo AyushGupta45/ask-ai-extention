@@ -16,6 +16,12 @@
         "default": "Alt+X"
       },
       "description": "Toggle AI Chat visibility"
+    },
+    "generate-response": {
+      "suggested_key": {
+        "default": "Alt+G"
+      },
+      "description": "Generate AI response for selected text"
     }
   }
 }

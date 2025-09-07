@@ -24,7 +24,6 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 
 // Handle keyboard shortcuts
 chrome.commands.onCommand.addListener((command, tab) => {
-
   if (command === "toggle-chat") {
     chrome.scripting.executeScript(
       {
@@ -34,6 +33,20 @@ chrome.commands.onCommand.addListener((command, tab) => {
       () => {
         chrome.tabs.sendMessage(tab.id, {
           toggleChat: true,
+        });
+      }
+    );
+  }
+
+  if (command === "generate-response") {
+    chrome.scripting.executeScript(
+      {
+        target: { tabId: tab.id },
+        files: ["content.js"],
+      },
+      () => {
+        chrome.tabs.sendMessage(tab.id, {
+          generateResponse: true,
         });
       }
     );
