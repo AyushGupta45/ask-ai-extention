@@ -5,254 +5,33 @@
   }
   window.aiHelperLoaded = true;
 
-  // ================= ENABLE DISABLED FEATURES ==================
-  function enableDisabledFeatures() {
-    // 1. Enable text selection
-    function enableTextSelection() {
-      // Remove CSS rules that disable text selection
-      const style = document.createElement("style");
-      style.innerHTML = `
-      * {
-        -webkit-user-select: text !important;
-        -moz-user-select: text !important;
-        -ms-user-select: text !important;
-        user-select: text !important;
-        -webkit-touch-callout: default !important;
-      }
-      
-      /* Override common selection disabling patterns */
-      *:not(input):not(textarea) {
-        -webkit-user-select: text !important;
-        -moz-user-select: text !important;
-        user-select: text !important;
-      }
-    `;
-      document.head.appendChild(style);
+  // Initialize bypass restrictions immediately
+  bypassWebsiteRestrictions();
 
-      // Remove onselectstart and ondragstart event handlers
-      document.onselectstart = null;
-      document.ondragstart = null;
+  const config = {
+    api_key: "YOUR_GROQ_API_KEY_HERE",
+    model: "llama-3.1-8b-instant",
+    api_endpoint: "https://api.groq.com/openai/v1/chat/completions",
+    instructions: {
+      default:
+        "You are an intelligent assistant. The user will give you a piece of text selected from a webpage, without extra instructions. Your job: 1. Understand what the text likely represents (e.g., a question, an article snippet, a code block, a definition, or a statement). 2. Provide the most helpful and relevant response in a natural, clear way. Examples: - If it's a question, answer it accurately and concisely. - If it's a paragraph or article, provide a short summary or explanation. - If it's code, explain what it does and/or improve it if needed. - If it's a problem to solve (like math or logic), give the correct solution with clear steps. - If it's unclear, give a helpful interpretation or context. 3. Keep the tone helpful and natural. Do not include unnecessary words or preambles. 4. If needed, provide short step-by-step reasoning or examples, but stay concise.",
+    },
+  };
 
-      // Override body and document selection restrictions
-      if (document.body) {
-        document.body.onselectstart = null;
-        document.body.ondragstart = null;
-        document.body.style.webkitUserSelect = "text";
-        document.body.style.userSelect = "text";
-      }
-
-      // Remove event listeners that prevent selection
-      const removeSelectionBlockers = () => {
-        document.removeEventListener("selectstart", preventEvent, true);
-        document.removeEventListener("dragstart", preventEvent, true);
-        document.removeEventListener("mousedown", preventEvent, true);
-      };
-
-      function preventEvent(e) {
-        e.stopPropagation();
-        return true;
-      }
-
-      removeSelectionBlockers();
-    }
-
-    // 2. Enable right-click context menu
-    function enableRightClick() {
-      // Remove oncontextmenu restrictions
-      document.oncontextmenu = null;
-      if (document.body) {
-        document.body.oncontextmenu = null;
-      }
-
-      // Remove context menu event listeners
-      document.removeEventListener("contextmenu", preventEvent, true);
-      document.removeEventListener("mouseup", preventEvent, true);
-      document.removeEventListener("mousedown", preventEvent, true);
-      document.removeEventListener("click", preventEvent, true);
-
-      function preventEvent(e) {
-        if (e.button === 2) {
-          // Right click
-          e.stopPropagation();
-          return true;
-        }
-      }
-
-      // Override common right-click blocking patterns
-      const style = document.createElement("style");
-      style.innerHTML = `
-      * {
-        pointer-events: auto !important;
-      }
-    `;
-      document.head.appendChild(style);
-    }
-
-    // 3. Enable copy/paste functionality
-    function enableCopyPaste() {
-      // Remove keyboard event restrictions
-      document.onkeydown = null;
-      document.onkeyup = null;
-      document.onkeypress = null;
-
-      if (document.body) {
-        document.body.onkeydown = null;
-        document.body.onkeyup = null;
-        document.body.onkeypress = null;
-      }
-
-      // Remove copy/paste blocking event listeners
-      document.removeEventListener("keydown", blockCopyPaste, true);
-      document.removeEventListener("keyup", blockCopyPaste, true);
-      document.removeEventListener("copy", preventEvent, true);
-      document.removeEventListener("paste", preventEvent, true);
-      document.removeEventListener("cut", preventEvent, true);
-
-      function blockCopyPaste(e) {
-        // Allow Ctrl+C, Ctrl+V, Ctrl+X, Ctrl+A, etc.
-        if (e.ctrlKey || e.metaKey) {
-          e.stopPropagation();
-          return true;
-        }
-      }
-
-      function preventEvent(e) {
-        e.stopPropagation();
-        return true;
-      }
-
-      // Enable clipboard access
-      const style = document.createElement("style");
-      style.innerHTML = `
-      input, textarea {
-        -webkit-user-select: text !important;
-        user-select: text !important;
-      }
-    `;
-      document.head.appendChild(style);
-    }
-
-    // Apply all fixes
-    enableTextSelection();
-    enableRightClick();
-    enableCopyPaste();
+  // Check if API key is defined
+  if (!config.api_key || config.api_key === "YOUR_GROQ_API_KEY_HERE") {
+    console.error(
+      "AI Helper: API key not configured. Please set your Groq API key in the config."
+    );
+    return;
   }
-
-  // Apply fixes immediately and after DOM load
-  enableDisabledFeatures();
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", enableDisabledFeatures);
-  } else {
-    // DOM is already loaded
-    setTimeout(enableDisabledFeatures, 100);
-  }
-
-  // Re-apply fixes if page dynamically changes
-  const observer = new MutationObserver(() => {
-    enableDisabledFeatures();
-  });
-
-  observer.observe(document.body || document.documentElement, {
-    childList: true,
-    subtree: true,
-    attributes: true,
-    attributeFilter: ["style", "class"],
-  });
-
-  // ================= CONFIG ==================
-  const api_key = "YOUR_API_KEY";
-  const model = "llama-3.1-8b-instant";
-
-  const DEFAULT_INSTRUCTION = `
-You are an intelligent assistant. The user will give you a piece of text selected from a webpage, without extra instructions. Your job:
-1. Understand what the text likely represents (e.g., a question, an article snippet, a code block, a definition, or a statement).
-2. Provide the most helpful and relevant response in a natural, clear way. Examples:
-   - If it's a question, answer it accurately and concisely.
-   - If it's a paragraph or article, provide a short summary or explanation.
-   - If it's code, explain what it does and/or improve it if needed.
-   - If it's a problem to solve (like math or logic), give the correct solution with clear steps.
-   - If it's unclear, give a helpful interpretation or context.
-3. Keep the tone helpful and natural. Do not include unnecessary words or preambles.
-4. If needed, provide short step-by-step reasoning or examples, but stay concise.
-`;
 
   // Track conversation context
   let conversationHistory = [];
 
-  function convertMarkdown(text) {
-    text = text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    text = text.replace(/\\\[(.*?)\\\]/g, '<div class="math-block">$1</div>');
-    text = text.replace(
-      /\\\((.*?)\\\)/g,
-      '<span class="math-inline">$1</span>'
-    );
-    text = text.replace(/```([^`]+)```/g, "<pre><code>$1</code></pre>");
-    text = text.replace(/`([^`]+)`/g, "<code>$1</code>");
-    text = text.replace(/^###### (.*$)/gm, "<h6>$1</h6>");
-    text = text.replace(/^##### (.*$)/gm, "<h5>$1</h5>");
-    text = text.replace(/^#### (.*$)/gm, "<h4>$1</h4>");
-    text = text.replace(/^### (.*$)/gm, "<h3>$1</h3>");
-    text = text.replace(/^## (.*$)/gm, "<h2>$1</h2>");
-    text = text.replace(/^# (.*$)/gm, "<h1>$1</h1>");
-    text = text.replace(/\*\*\*([^*]+)\*\*\*/g, "<strong><em>$1</em></strong>");
-    text = text.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
-    text = text.replace(/\*([^*]+)\*/g, "<em>$1</em>");
-    text = text.replace(/___([^_]+)___/g, "<strong><em>$1</em></strong>");
-    text = text.replace(/__([^_]+)__/g, "<strong>$1</strong>");
-    text = text.replace(/_([^_]+)_/g, "<em>$1</em>");
-    text = text.replace(
-      /!\[([^\]]*)\]\(([^\)]+)\)/g,
-      '<img src="$2" alt="$1">'
-    );
-    text = text.replace(/\[([^\]]+)\]\(([^\)]+)\)/g, '<a href="$2">$1</a>');
-    text = text.replace(
-      /(?<!href=")(https?:\/\/[^\s]+)/g,
-      '<a href="$1">$1</a>'
-    );
-    text = text.replace(/^\> (.+)$/gm, "<blockquote>$1</blockquote>");
-    text = text.replace(/^\s*(\*\*\*|---)\s*$/gm, "<hr>");
-    text = text.replace(
-      /^\- \[ \] (.+)$/gm,
-      '<li><input type="checkbox" disabled> $1</li>'
-    );
-    text = text.replace(
-      /^\- \[x\] (.+)$/gm,
-      '<li><input type="checkbox" checked disabled> $1</li>'
-    );
-    text = text.replace(/^\|(.+)\|\s*$/gm, function (match, p1) {
-      const cells = p1
-        .split("|")
-        .map((c) => `<td>${c.trim()}</td>`)
-        .join("");
-      return `<tr>${cells}</tr>`;
-    });
-    text = text.replace(/(<tr>.*<\/tr>)/gs, "<table>$1</table>");
-    text = text.replace(/^\* (.+)$/gm, "<li>$1</li>");
-    text = text.replace(/(<li>.*<\/li>)/gs, "<ul>$1</ul>");
-    text = text.replace(/^\d+\.\s+(.+)$/gm, "<li>$1</li>");
-    text = text.replace(/(<ol>.*<\/ol>)/gs, "<ol>$1</ol>");
-    text = text.replace(
-      /\n\n(?!<div|<span|<h\d|<ul|<ol|<li|<pre|<blockquote|<img|<hr|<table)([^<].*)/g,
-      "<p>$1</p>"
-    );
-    text = text.replace(/\n(?!<)(?!$)/g, "<br>");
-    return text;
-  }
-
   let isProcessing = false;
   let lastInjectedDiv = null;
   let chatContainer = null; // Track the chat container globally
-
-  // ============ AI RESPONSE HIDE/SHOW FUNCTIONALITY ============
-  function toggleAIResponse() {
-    if (!lastInjectedDiv) return;
-
-    if (lastInjectedDiv.style.display === "none") {
-      lastInjectedDiv.style.display = "block";
-    } else {
-      lastInjectedDiv.style.display = "none";
-    }
-  }
 
   // Keyboard shortcut listener for Alt+C and Alt+G
   document.addEventListener("keydown", (e) => {
@@ -313,16 +92,16 @@ You are an intelligent assistant. The user will give you a piece of text selecte
     // Add first user message to conversation history
     conversationHistory = [{ role: "user", content: userText }];
 
-    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    const res = await fetch(config.api_endpoint, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${api_key}`,
+        Authorization: `Bearer ${config.api_key}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: model,
+        model: config.model,
         messages: [
-          { role: "system", content: DEFAULT_INSTRUCTION },
+          { role: "system", content: config.instructions.default },
           ...conversationHistory,
         ],
       }),
@@ -426,47 +205,37 @@ You are an intelligent assistant. The user will give you a piece of text selecte
         const regenerateButton = document.createElement("button");
         regenerateButton.textContent = "Regenerate";
         regenerateButton.style.cssText = `
-        padding: 6px 12px;
-        background: #ffc107;
-        color: #000;
-        border: 1px solid #ffb300;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 12px;
+            padding: 6px 12px;
+            background: #f0f0f0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
       `;
         regenerateButton.addEventListener("click", async () => {
           regenerateButton.textContent = "Regenerating...";
           regenerateButton.disabled = true;
 
           try {
-            const regeneratePrompt =
-              DEFAULT_INSTRUCTION +
-              "\n\nUser input:\n" +
-              userText +
-              "\n\nPlease provide a different response from your previous answer.";
-
-            const res = await fetch(
-              "https://api.groq.com/openai/v1/chat/completions",
-              {
-                method: "POST",
-                headers: {
-                  Authorization: `Bearer ${api_key}`,
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  model: model,
-                  messages: [
-                    { role: "system", content: DEFAULT_INSTRUCTION },
-                    {
-                      role: "user",
-                      content:
-                        userText +
-                        "\n\nPlease provide a different response from your previous answer.",
-                    },
-                  ],
-                }),
-              }
-            );
+            const res = await fetch(config.api_endpoint, {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${config.api_key}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model: config.model,
+                messages: [
+                  { role: "system", content: config.instructions.default },
+                  {
+                    role: "user",
+                    content:
+                      userText +
+                      "\n\nPlease provide a different response from your previous answer.",
+                  },
+                ],
+              }),
+            });
 
             const result = await res.json();
             const newAnswer =
@@ -503,13 +272,12 @@ You are an intelligent assistant. The user will give you a piece of text selecte
         const continueButton = document.createElement("button");
         continueButton.textContent = "Continue to Chat";
         continueButton.style.cssText = `
-        padding: 6px 12px;
-        background: #007bff;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 12px;
+            padding: 6px 12px;
+            background: #f0f0f0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
       `;
         continueButton.addEventListener("click", openChatInterface);
 
@@ -649,13 +417,12 @@ You are an intelligent assistant. The user will give you a piece of text selecte
     const newChatButton = document.createElement("button");
     newChatButton.textContent = "New Chat";
     newChatButton.style.cssText = `
-    padding: 4px 8px;
-    background: #28a745;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 11px;
+        padding: 6px 12px;
+        background: #f0f0f0;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
   `;
     newChatButton.addEventListener("click", () => {
       // Clear conversation history
@@ -750,13 +517,12 @@ You are an intelligent assistant. The user will give you a piece of text selecte
         const regenerateBtn = document.createElement("button");
         regenerateBtn.textContent = "↻ Regenerate";
         regenerateBtn.style.cssText = `
-          padding: 2px 6px;
-          background: #ffc107;
-          color: #000;
-          border: 1px solid #ffb300;
-          border-radius: 3px;
-          cursor: pointer;
-          font-size: 10px;
+            padding: 6px 12px;
+            background: #f0f0f0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
         `;
 
         regenerateBtn.addEventListener("click", async () => {
@@ -767,32 +533,29 @@ You are an intelligent assistant. The user will give you a piece of text selecte
             // Find the corresponding user message
             const userMsg = conversationHistory[index - 1];
             if (userMsg && userMsg.role === "user") {
-              const res = await fetch(
-                "https://api.groq.com/openai/v1/chat/completions",
-                {
-                  method: "POST",
-                  headers: {
-                    Authorization: `Bearer ${api_key}`,
-                    "Content-Type": "application/json",
-                  },
-                  body: JSON.stringify({
-                    model: model,
-                    messages: [
-                      {
-                        role: "system",
-                        content:
-                          "You are an expert assistant. Help the user naturally. Provide a different response from your previous answer.",
-                      },
-                      {
-                        role: "user",
-                        content:
-                          userMsg.content +
-                          "\n\nPlease provide a different response.",
-                      },
-                    ],
-                  }),
-                }
-              );
+              const res = await fetch(config.api_endpoint, {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${config.api_key}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  model: config.model,
+                  messages: [
+                    {
+                      role: "system",
+                      content:
+                        "You are an expert assistant. Help the user naturally. Provide a different response from your previous answer.",
+                    },
+                    {
+                      role: "user",
+                      content:
+                        userMsg.content +
+                        "\n\nPlease provide a different response.",
+                    },
+                  ],
+                }),
+              });
 
               const data = await res.json();
               const newResponse =
@@ -872,26 +635,23 @@ You are an intelligent assistant. The user will give you a piece of text selecte
       chatInput.value = "";
       chatMessages.scrollTop = chatMessages.scrollHeight;
 
-      const res = await fetch(
-        "https://api.groq.com/openai/v1/chat/completions",
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${api_key}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: model,
-            messages: [
-              {
-                role: "system",
-                content: DEFAULT_INSTRUCTION,
-              },
-              ...conversationHistory,
-            ],
-          }),
-        }
-      );
+      const res = await fetch(config.api_endpoint, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${config.api_key}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: config.model,
+          messages: [
+            {
+              role: "system",
+              content: config.instructions.default,
+            },
+            ...conversationHistory,
+          ],
+        }),
+      });
 
       const data = await res.json();
       const aiResponse =
@@ -927,13 +687,12 @@ You are an intelligent assistant. The user will give you a piece of text selecte
       const regenerateBtn = document.createElement("button");
       regenerateBtn.textContent = "↻ Regenerate";
       regenerateBtn.style.cssText = `
-        padding: 2px 6px;
-        background: #ffc107;
-        color: #000;
-        border: 1px solid #ffb300;
-        border-radius: 3px;
+        padding: 6px 12px;
+        background: #f0f0f0;
+        border: 1px solid #ddd;
+        border-radius: 4px;
         cursor: pointer;
-        font-size: 10px;
+        font-size: 12px;
       `;
 
       regenerateBtn.addEventListener("click", async () => {
@@ -941,31 +700,27 @@ You are an intelligent assistant. The user will give you a piece of text selecte
         regenerateBtn.disabled = true;
 
         try {
-          const res = await fetch(
-            "https://api.groq.com/openai/v1/chat/completions",
-            {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${api_key}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                model: model,
-                messages: [
-                  {
-                    role: "system",
-                    content:
-                      "You are an expert assistant. Help the user naturally. Provide a different response from your previous answer.",
-                  },
-                  {
-                    role: "user",
-                    content:
-                      userMsg + "\n\nPlease provide a different response.",
-                  },
-                ],
-              }),
-            }
-          );
+          const res = await fetch(config.api_endpoint, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${config.api_key}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: config.model,
+              messages: [
+                {
+                  role: "system",
+                  content:
+                    "You are an expert assistant. Help the user naturally. Provide a different response from your previous answer.",
+                },
+                {
+                  role: "user",
+                  content: userMsg + "\n\nPlease provide a different response.",
+                },
+              ],
+            }),
+          });
 
           const newData = await res.json();
           const newAiResponse =
@@ -1013,6 +768,17 @@ You are an intelligent assistant. The user will give you a piece of text selecte
     document.body.appendChild(chatContainer);
   }
 
+  // ============ AI RESPONSE HIDE/SHOW FUNCTIONALITY ============
+  function toggleAIResponse() {
+    if (!lastInjectedDiv) return;
+
+    if (lastInjectedDiv.style.display === "none") {
+      lastInjectedDiv.style.display = "block";
+    } else {
+      lastInjectedDiv.style.display = "none";
+    }
+  }
+
   // ================= TOGGLE CHAT INTERFACE =================
   function toggleChatInterface() {
     if (!chatContainer || !document.body.contains(chatContainer)) {
@@ -1027,4 +793,228 @@ You are an intelligent assistant. The user will give you a piece of text selecte
       }
     }
   }
-})(); // End IIFE
+
+  // ============ Markdown Conversion ============
+  function convertMarkdown(text) {
+    text = text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    text = text.replace(/\\\[(.*?)\\\]/g, '<div class="math-block">$1</div>');
+    text = text.replace(
+      /\\\((.*?)\\\)/g,
+      '<span class="math-inline">$1</span>'
+    );
+    text = text.replace(/```([^`]+)```/g, "<pre><code>$1</code></pre>");
+    text = text.replace(/`([^`]+)`/g, "<code>$1</code>");
+    text = text.replace(/^###### (.*$)/gm, "<h6>$1</h6>");
+    text = text.replace(/^##### (.*$)/gm, "<h5>$1</h5>");
+    text = text.replace(/^#### (.*$)/gm, "<h4>$1</h4>");
+    text = text.replace(/^### (.*$)/gm, "<h3>$1</h3>");
+    text = text.replace(/^## (.*$)/gm, "<h2>$1</h2>");
+    text = text.replace(/^# (.*$)/gm, "<h1>$1</h1>");
+    text = text.replace(/\*\*\*([^*]+)\*\*\*/g, "<strong><em>$1</em></strong>");
+    text = text.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+    text = text.replace(/\*([^*]+)\*/g, "<em>$1</em>");
+    text = text.replace(/___([^_]+)___/g, "<strong><em>$1</em></strong>");
+    text = text.replace(/__([^_]+)__/g, "<strong>$1</strong>");
+    text = text.replace(/_([^_]+)_/g, "<em>$1</em>");
+    text = text.replace(
+      /!\[([^\]]*)\]\(([^\)]+)\)/g,
+      '<img src="$2" alt="$1">'
+    );
+    text = text.replace(/\[([^\]]+)\]\(([^\)]+)\)/g, '<a href="$2">$1</a>');
+    text = text.replace(
+      /(?<!href=")(https?:\/\/[^\s]+)/g,
+      '<a href="$1">$1</a>'
+    );
+    text = text.replace(/^\> (.+)$/gm, "<blockquote>$1</blockquote>");
+    text = text.replace(/^\s*(\*\*\*|---)\s*$/gm, "<hr>");
+    text = text.replace(
+      /^\- \[ \] (.+)$/gm,
+      '<li><input type="checkbox" disabled> $1</li>'
+    );
+    text = text.replace(
+      /^\- \[x\] (.+)$/gm,
+      '<li><input type="checkbox" checked disabled> $1</li>'
+    );
+    text = text.replace(/^\|(.+)\|\s*$/gm, function (match, p1) {
+      const cells = p1
+        .split("|")
+        .map((c) => `<td>${c.trim()}</td>`)
+        .join("");
+      return `<tr>${cells}</tr>`;
+    });
+    text = text.replace(/(<tr>.*<\/tr>)/gs, "<table>$1</table>");
+    text = text.replace(/^\* (.+)$/gm, "<li>$1</li>");
+    text = text.replace(/(<li>.*<\/li>)/gs, "<ul>$1</ul>");
+    text = text.replace(/^\d+\.\s+(.+)$/gm, "<li>$1</li>");
+    text = text.replace(/(<ol>.*<\/ol>)/gs, "<ol>$1</ol>");
+    text = text.replace(
+      /\n\n(?!<div|<span|<h\d|<ul|<ol|<li|<pre|<blockquote|<img|<hr|<table)([^<].*)/g,
+      "<p>$1</p>"
+    );
+    text = text.replace(/\n(?!<)(?!$)/g, "<br>");
+    return text;
+  }
+
+  // ================= BYPASS WEBSITE RESTRICTIONS =================
+  function bypassWebsiteRestrictions() {
+    // 1. Enable text selection
+    function enableTextSelection() {
+      // Remove CSS rules that disable text selection
+      const style = document.createElement("style");
+      style.innerHTML = `
+      * {
+        -webkit-user-select: text !important;
+        -moz-user-select: text !important;
+        -ms-user-select: text !important;
+        user-select: text !important;
+        -webkit-touch-callout: default !important;
+      }
+      
+      /* Override common selection disabling patterns */
+      *:not(input):not(textarea) {
+        -webkit-user-select: text !important;
+        -moz-user-select: text !important;
+        user-select: text !important;
+      }
+    `;
+      document.head.appendChild(style);
+
+      // Remove onselectstart and ondragstart event handlers
+      document.onselectstart = null;
+      document.ondragstart = null;
+
+      // Override body and document selection restrictions
+      if (document.body) {
+        document.body.onselectstart = null;
+        document.body.ondragstart = null;
+        document.body.style.webkitUserSelect = "text";
+        document.body.style.userSelect = "text";
+      }
+
+      // Remove event listeners that prevent selection
+      const removeSelectionBlockers = () => {
+        document.removeEventListener("selectstart", preventEvent, true);
+        document.removeEventListener("dragstart", preventEvent, true);
+        document.removeEventListener("mousedown", preventEvent, true);
+      };
+
+      function preventEvent(e) {
+        e.stopPropagation();
+        return true;
+      }
+
+      removeSelectionBlockers();
+    }
+
+    // 2. Enable right-click context menu
+    function enableRightClick() {
+      // Remove oncontextmenu restrictions
+      document.oncontextmenu = null;
+      if (document.body) {
+        document.body.oncontextmenu = null;
+      }
+
+      // Remove context menu event listeners
+      document.removeEventListener("contextmenu", preventEvent, true);
+      document.removeEventListener("mouseup", preventEvent, true);
+      document.removeEventListener("mousedown", preventEvent, true);
+      document.removeEventListener("click", preventEvent, true);
+
+      function preventEvent(e) {
+        if (e.button === 2) {
+          // Right click
+          e.stopPropagation();
+          return true;
+        }
+      }
+
+      // Override common right-click blocking patterns
+      const style = document.createElement("style");
+      style.innerHTML = `
+      * {
+        pointer-events: auto !important;
+      }
+    `;
+      document.head.appendChild(style);
+    }
+
+    // 3. Enable copy/paste functionality
+    function enableCopyPaste() {
+      // Remove keyboard event restrictions
+      document.onkeydown = null;
+      document.onkeyup = null;
+      document.onkeypress = null;
+
+      if (document.body) {
+        document.body.onkeydown = null;
+        document.body.onkeyup = null;
+        document.body.onkeypress = null;
+      }
+
+      // Remove copy/paste blocking event listeners
+      document.removeEventListener("keydown", blockCopyPaste, true);
+      document.removeEventListener("keyup", blockCopyPaste, true);
+      document.removeEventListener("copy", preventEvent, true);
+      document.removeEventListener("paste", preventEvent, true);
+      document.removeEventListener("cut", preventEvent, true);
+
+      function blockCopyPaste(e) {
+        // Allow Ctrl+C, Ctrl+V, Ctrl+X, Ctrl+A, etc.
+        if (e.ctrlKey || e.metaKey) {
+          e.stopPropagation();
+          return true;
+        }
+      }
+
+      function preventEvent(e) {
+        e.stopPropagation();
+        return true;
+      }
+
+      // Enable clipboard access
+      const style = document.createElement("style");
+      style.innerHTML = `
+      input, textarea {
+        -webkit-user-select: text !important;
+        user-select: text !important;
+      }
+    `;
+      document.head.appendChild(style);
+    }
+
+    // Apply all bypass fixes
+    enableTextSelection();
+    enableRightClick();
+    enableCopyPaste();
+
+    // Apply fixes after DOM load if needed
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", () => {
+        enableTextSelection();
+        enableRightClick();
+        enableCopyPaste();
+      });
+    } else {
+      // DOM is already loaded, apply fixes with a small delay
+      setTimeout(() => {
+        enableTextSelection();
+        enableRightClick();
+        enableCopyPaste();
+      }, 100);
+    }
+
+    // Re-apply fixes if page dynamically changes
+    const observer = new MutationObserver(() => {
+      enableTextSelection();
+      enableRightClick();
+      enableCopyPaste();
+    });
+
+    observer.observe(document.body || document.documentElement, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["style", "class"],
+    });
+  }
+})(); // End IIFE - Initialize AI Helper
