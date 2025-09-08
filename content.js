@@ -368,9 +368,11 @@
 
   // ================= CHAT INTERFACE =================
   function openChatInterface() {
-    // If chat is already open, just show it
+    // If chat is already open, update it with current conversation and show it
     if (chatContainer && document.body.contains(chatContainer)) {
       chatContainer.style.display = "flex";
+      // Update the chat messages to reflect current conversationHistory
+      updateChatMessages();
       return;
     }
 
@@ -428,8 +430,8 @@
       // Clear conversation history
       conversationHistory = [];
 
-      // Clear chat messages
-      chatMessages.innerHTML = "";
+      // Clear chat messages using updateChatMessages (which will show empty since history is cleared)
+      updateChatMessages();
 
       // Show confirmation
       const confirmMsg = document.createElement("div");
@@ -444,14 +446,18 @@
         font-size: 12px;
         margin: 10px 0;
       `;
-      chatMessages.appendChild(confirmMsg);
 
-      // Remove confirmation message after 3 seconds
-      setTimeout(() => {
-        if (chatMessages.contains(confirmMsg)) {
-          chatMessages.removeChild(confirmMsg);
-        }
-      }, 3000);
+      const chatMessages = chatContainer.querySelector(".chat-messages");
+      if (chatMessages) {
+        chatMessages.appendChild(confirmMsg);
+
+        // Remove confirmation message after 3 seconds
+        setTimeout(() => {
+          if (chatMessages.contains(confirmMsg)) {
+            chatMessages.removeChild(confirmMsg);
+          }
+        }, 3000);
+      }
     });
 
     const closeChatButton = document.createElement("button");
@@ -474,6 +480,7 @@
     makeDraggable(chatContainer, chatHeader);
 
     const chatMessages = document.createElement("div");
+    chatMessages.className = "chat-messages"; // Add class for easy selection
     chatMessages.style.cssText = `
     flex: 1;
     overflow-y: auto;
@@ -483,110 +490,8 @@
     gap: 10px;
   `;
 
-    conversationHistory.forEach((msg, index) => {
-      const msgWrapper = document.createElement("div");
-      msgWrapper.style.cssText = `
-        display: flex;
-        flex-direction: column;
-        align-items: ${msg.role === "user" ? "flex-end" : "flex-start"};
-        margin: 8px 0;
-      `;
-
-      const msgDiv = document.createElement("div");
-      msgDiv.style.padding = "8px 12px";
-      msgDiv.style.borderRadius = "8px";
-      msgDiv.style.maxWidth = "80%";
-      msgDiv.style.wordWrap = "break-word";
-      msgDiv.style.userSelect = "text";
-
-      if (msg.role === "user") {
-        msgDiv.style.background = "#e3f2fd";
-        msgDiv.textContent = msg.content;
-        msgWrapper.appendChild(msgDiv);
-      } else {
-        msgDiv.style.background = "#f1f1f1";
-        msgDiv.innerHTML = convertMarkdown(msg.content);
-
-        // Add regenerate button for AI responses
-        const regenerateBtnDiv = document.createElement("div");
-        regenerateBtnDiv.style.cssText = `
-          margin-top: 4px;
-          text-align: left;
-        `;
-
-        const regenerateBtn = document.createElement("button");
-        regenerateBtn.textContent = "↻ Regenerate";
-        regenerateBtn.style.cssText = `
-            padding: 6px 12px;
-            background: #f0f0f0;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 12px;
-        `;
-
-        regenerateBtn.addEventListener("click", async () => {
-          regenerateBtn.textContent = "Generating...";
-          regenerateBtn.disabled = true;
-
-          try {
-            // Find the corresponding user message
-            const userMsg = conversationHistory[index - 1];
-            if (userMsg && userMsg.role === "user") {
-              const res = await fetch(config.api_endpoint, {
-                method: "POST",
-                headers: {
-                  Authorization: `Bearer ${config.api_key}`,
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  model: config.model,
-                  messages: [
-                    {
-                      role: "system",
-                      content:
-                        "You are an expert assistant. Help the user naturally. Provide a different response from your previous answer.",
-                    },
-                    {
-                      role: "user",
-                      content:
-                        userMsg.content +
-                        "\n\nPlease provide a different response.",
-                    },
-                  ],
-                }),
-              });
-
-              const data = await res.json();
-              const newResponse =
-                data.choices?.[0]?.message?.content || "⚠️ No response";
-
-              // Update the message content
-              msgDiv.innerHTML = convertMarkdown(newResponse);
-
-              // Update conversation history
-              conversationHistory[index] = {
-                role: "assistant",
-                content: newResponse,
-              };
-            }
-          } catch (error) {
-            console.error("Error regenerating message:", error);
-            msgDiv.innerHTML =
-              "<p style='color: red;'>⚠️ Error regenerating. Please try again.</p>";
-          } finally {
-            regenerateBtn.textContent = "↻ Regenerate";
-            regenerateBtn.disabled = false;
-          }
-        });
-
-        regenerateBtnDiv.appendChild(regenerateBtn);
-        msgWrapper.appendChild(msgDiv);
-        msgWrapper.appendChild(regenerateBtnDiv);
-      }
-
-      chatMessages.appendChild(msgWrapper);
-    });
+    // Use the updateChatMessages function to render initial messages
+    // We'll call it after appending chatMessages to chatContainer
 
     const chatInputWrapper = document.createElement("div");
     chatInputWrapper.style.cssText = `display: flex; border-top: 1px solid #ddd;`;
@@ -765,7 +670,130 @@
     chatContainer.appendChild(chatMessages);
     chatContainer.appendChild(chatInputWrapper);
 
+    // Now render the messages from current conversation history
+    updateChatMessages();
+
     document.body.appendChild(chatContainer);
+  }
+
+  // Function to update chat messages with current conversation history
+  function updateChatMessages() {
+    if (!chatContainer) return;
+
+    const chatMessages = chatContainer.querySelector(".chat-messages");
+    if (!chatMessages) return;
+
+    // Clear existing messages
+    chatMessages.innerHTML = "";
+
+    // Re-render all messages from current conversationHistory
+    conversationHistory.forEach((msg, index) => {
+      const msgWrapper = document.createElement("div");
+      msgWrapper.style.cssText = `
+        display: flex;
+        flex-direction: column;
+        align-items: ${msg.role === "user" ? "flex-end" : "flex-start"};
+        margin: 8px 0;
+      `;
+
+      const msgDiv = document.createElement("div");
+      msgDiv.style.padding = "8px 12px";
+      msgDiv.style.borderRadius = "8px";
+      msgDiv.style.maxWidth = "80%";
+      msgDiv.style.wordWrap = "break-word";
+      msgDiv.style.userSelect = "text";
+
+      if (msg.role === "user") {
+        msgDiv.style.background = "#e3f2fd";
+        msgDiv.textContent = msg.content;
+        msgWrapper.appendChild(msgDiv);
+      } else {
+        msgDiv.style.background = "#f1f1f1";
+        msgDiv.innerHTML = convertMarkdown(msg.content);
+
+        // Add regenerate button for AI responses
+        const regenerateBtnDiv = document.createElement("div");
+        regenerateBtnDiv.style.cssText = `
+          margin-top: 4px;
+          text-align: left;
+        `;
+
+        const regenerateBtn = document.createElement("button");
+        regenerateBtn.textContent = "↻ Regenerate";
+        regenerateBtn.style.cssText = `
+            padding: 6px 12px;
+            background: #f0f0f0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        `;
+
+        regenerateBtn.addEventListener("click", async () => {
+          regenerateBtn.textContent = "Generating...";
+          regenerateBtn.disabled = true;
+
+          try {
+            // Find the corresponding user message
+            const userMsg = conversationHistory[index - 1];
+            if (userMsg && userMsg.role === "user") {
+              const res = await fetch(config.api_endpoint, {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${config.api_key}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  model: config.model,
+                  messages: [
+                    {
+                      role: "system",
+                      content:
+                        "You are an expert assistant. Help the user naturally. Provide a different response from your previous answer.",
+                    },
+                    {
+                      role: "user",
+                      content:
+                        userMsg.content +
+                        "\n\nPlease provide a different response.",
+                    },
+                  ],
+                }),
+              });
+
+              const data = await res.json();
+              const newResponse =
+                data.choices?.[0]?.message?.content || "⚠️ No response";
+
+              // Update the message content
+              msgDiv.innerHTML = convertMarkdown(newResponse);
+
+              // Update conversation history
+              conversationHistory[index] = {
+                role: "assistant",
+                content: newResponse,
+              };
+            }
+          } catch (error) {
+            console.error("Error regenerating message:", error);
+            msgDiv.innerHTML =
+              "<p style='color: red;'>⚠️ Error regenerating. Please try again.</p>";
+          } finally {
+            regenerateBtn.textContent = "↻ Regenerate";
+            regenerateBtn.disabled = false;
+          }
+        });
+
+        regenerateBtnDiv.appendChild(regenerateBtn);
+        msgWrapper.appendChild(msgDiv);
+        msgWrapper.appendChild(regenerateBtnDiv);
+      }
+
+      chatMessages.appendChild(msgWrapper);
+    });
+
+    // Scroll to bottom to show latest messages
+    chatMessages.scrollTop = chatMessages.scrollHeight;
   }
 
   // ============ AI RESPONSE HIDE/SHOW FUNCTIONALITY ============
