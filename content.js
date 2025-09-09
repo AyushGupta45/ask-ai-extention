@@ -824,63 +824,119 @@
 
   // ============ Markdown Conversion ============
   function convertMarkdown(text) {
-    text = text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    text = text.replace(/\\\[(.*?)\\\]/g, '<div class="math-block">$1</div>');
-    text = text.replace(
-      /\\\((.*?)\\\)/g,
-      '<span class="math-inline">$1</span>'
-    );
-    text = text.replace(/```([^`]+)```/g, "<pre><code>$1</code></pre>");
-    text = text.replace(/`([^`]+)`/g, "<code>$1</code>");
-    text = text.replace(/^###### (.*$)/gm, "<h6>$1</h6>");
-    text = text.replace(/^##### (.*$)/gm, "<h5>$1</h5>");
-    text = text.replace(/^#### (.*$)/gm, "<h4>$1</h4>");
-    text = text.replace(/^### (.*$)/gm, "<h3>$1</h3>");
-    text = text.replace(/^## (.*$)/gm, "<h2>$1</h2>");
-    text = text.replace(/^# (.*$)/gm, "<h1>$1</h1>");
-    text = text.replace(/\*\*\*([^*]+)\*\*\*/g, "<strong><em>$1</em></strong>");
-    text = text.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
-    text = text.replace(/\*([^*]+)\*/g, "<em>$1</em>");
-    text = text.replace(/___([^_]+)___/g, "<strong><em>$1</em></strong>");
-    text = text.replace(/__([^_]+)__/g, "<strong>$1</strong>");
-    text = text.replace(/_([^_]+)_/g, "<em>$1</em>");
-    text = text.replace(
-      /!\[([^\]]*)\]\(([^\)]+)\)/g,
-      '<img src="$2" alt="$1">'
-    );
-    text = text.replace(/\[([^\]]+)\]\(([^\)]+)\)/g, '<a href="$2">$1</a>');
-    text = text.replace(
-      /(?<!href=")(https?:\/\/[^\s]+)/g,
-      '<a href="$1">$1</a>'
-    );
-    text = text.replace(/^\> (.+)$/gm, "<blockquote>$1</blockquote>");
-    text = text.replace(/^\s*(\*\*\*|---)\s*$/gm, "<hr>");
-    text = text.replace(
-      /^\- \[ \] (.+)$/gm,
-      '<li><input type="checkbox" disabled> $1</li>'
-    );
-    text = text.replace(
-      /^\- \[x\] (.+)$/gm,
-      '<li><input type="checkbox" checked disabled> $1</li>'
-    );
-    text = text.replace(/^\|(.+)\|\s*$/gm, function (match, p1) {
-      const cells = p1
-        .split("|")
-        .map((c) => `<td>${c.trim()}</td>`)
-        .join("");
-      return `<tr>${cells}</tr>`;
+    // Handle LaTeX math expressions before markdown processing
+    // Store LaTeX expressions with placeholders to protect them from markdown processing
+    const mathExpressions = [];
+    let mathIndex = 0;
+
+    // Handle block math $$...$$
+    text = text.replace(/\$\$([\s\S]*?)\$\$/g, (match, content) => {
+      const placeholder = `__MATH_BLOCK_${mathIndex}__`;
+      mathExpressions[
+        mathIndex
+      ] = `<div class="math-block" style="text-align: center; margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 4px;">$$${content.trim()}$$</div>`;
+      mathIndex++;
+      return placeholder;
     });
-    text = text.replace(/(<tr>.*<\/tr>)/gs, "<table>$1</table>");
-    text = text.replace(/^\* (.+)$/gm, "<li>$1</li>");
-    text = text.replace(/(<li>.*<\/li>)/gs, "<ul>$1</ul>");
-    text = text.replace(/^\d+\.\s+(.+)$/gm, "<li>$1</li>");
-    text = text.replace(/(<ol>.*<\/ol>)/gs, "<ol>$1</ol>");
-    text = text.replace(
-      /\n\n(?!<div|<span|<h\d|<ul|<ol|<li|<pre|<blockquote|<img|<hr|<table)([^<].*)/g,
-      "<p>$1</p>"
-    );
-    text = text.replace(/\n(?!<)(?!$)/g, "<br>");
-    return text;
+
+    // Handle inline math $...$
+    text = text.replace(/\$([^$\n]+)\$/g, (match, content) => {
+      const placeholder = `__MATH_INLINE_${mathIndex}__`;
+      mathExpressions[
+        mathIndex
+      ] = `<span class="math-inline" style="background: #f0f0f0; padding: 2px 4px; border-radius: 2px;">$${content}$</span>`;
+      mathIndex++;
+      return placeholder;
+    });
+
+    // Handle LaTeX \[ \] block math
+    text = text.replace(/\\\[([\s\S]*?)\\\]/g, (match, content) => {
+      const placeholder = `__MATH_BLOCK_${mathIndex}__`;
+      mathExpressions[
+        mathIndex
+      ] = `<div class="math-block" style="text-align: center; margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 4px;">\\[${content.trim()}\\]</div>`;
+      mathIndex++;
+      return placeholder;
+    });
+
+    // Handle LaTeX \( \) inline math
+    text = text.replace(/\\\((.*?)\\\)/g, (match, content) => {
+      const placeholder = `__MATH_INLINE_${mathIndex}__`;
+      mathExpressions[
+        mathIndex
+      ] = `<span class="math-inline" style="background: #f0f0f0; padding: 2px 4px; border-radius: 2px;">\\(${content}\\)</span>`;
+      mathIndex++;
+      return placeholder;
+    });
+
+    // Convert markdown using marked.js
+    let htmlContent = marked.parse(text);
+
+    // Restore LaTeX expressions
+    mathExpressions.forEach((expression, index) => {
+      const placeholder = `__MATH_BLOCK_${index}__`;
+      const inlinePlaceholder = `__MATH_INLINE_${index}__`;
+      htmlContent = htmlContent.replace(
+        new RegExp(placeholder, "g"),
+        expression
+      );
+      htmlContent = htmlContent.replace(
+        new RegExp(inlinePlaceholder, "g"),
+        expression
+      );
+    });
+
+    // Sanitize the HTML using DOMPurify
+    const cleanHTML = DOMPurify.sanitize(htmlContent, {
+      ALLOWED_TAGS: [
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "h5",
+        "h6",
+        "p",
+        "br",
+        "div",
+        "span",
+        "strong",
+        "em",
+        "b",
+        "i",
+        "u",
+        "ul",
+        "ol",
+        "li",
+        "blockquote",
+        "pre",
+        "code",
+        "a",
+        "img",
+        "table",
+        "thead",
+        "tbody",
+        "tr",
+        "th",
+        "td",
+        "hr",
+        "input",
+      ],
+      ALLOWED_ATTR: [
+        "href",
+        "src",
+        "alt",
+        "title",
+        "class",
+        "style",
+        "type",
+        "checked",
+        "disabled",
+        "target",
+        "rel",
+      ],
+    });
+
+    return cleanHTML;
   }
 
   // ================= BYPASS WEBSITE RESTRICTIONS =================

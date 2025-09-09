@@ -23,5 +23,12 @@
       },
       "description": "Generate AI response for selected text"
     }
-  }
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["libs/marked.min.js", "libs/dompurify.min.js", "content.js"],
+      "run_at": "document_idle"
+    }
+  ]
 }
